@@ -1,0 +1,150 @@
+\documentclass{article}
+
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{cancel}
+
+\begin{document}
+
+\section{From rate to spikes}
+The general approach of translating the original continuous rate-based
+model into a spiking model with event-based (spike-based) updates is
+to interpret the original neuron activation variables as firing rates
+and identfy those with $f= \frac{1}{\text{ISI}}$. For the synapses we
+can then attempt the following translations:
+\begin{enumerate}
+\item
+  Top-down synapses, \verb+synapse_down_inter+, from output neurons or
+  pyramidal neurons onto interneurons are static and in the continuous
+  mode have asynaptic activation of $g \cdot V_{\text{pre}}$ at every
+  timestep (continuous runmode). \\ Spiking: Translate into a
+  spike-triggered update with synaptic weight $\tilde{g}$. The proportionality
+  to $V_{\text{pre}}$ then is generated automatically because there
+  will be updates for every spike, and hence the number of updates as
+  well as the overall input is proportional to the pre-synaptic spike
+  rate. The overall input over 1 second and constant $V_{\text{pre}}$
+  for the continuous version (in a discrete time simulation with
+  timestep $\Delta t$) is
+  \begin{align}
+    g_{\text{total}}= \frac{1 s}{\Delta t} g V_{\text{pre}} 
+  \end{align}
+  For the discrete version we would have
+  \begin{align}
+    g_{\text{total}} = \tilde{g} \cdot 1 s \cdot V_{\text{pre}}
+  \end{align}
+  In order to achieve the same quantitative effect, we hence need
+  $\tilde{g} = \frac{g}{\Delta t}$.
+\item
+  Teaching signals from a supervisor, \verb+synapse_down_output+, are
+  switched on during learning and off during testing. In the
+  continuous runmode they transmit $g \cdot r_{\text{pre}}$, where
+  $r_{\text{pre}}$ is the presynaptic supervisor rate. Similar to the
+  previous point, this traslates to updates of $\tilde{g}$ upon
+  presynaptic spikes in a spiking version. And again, $\tilde{g} =
+  \frac{g}{\Delta t}$
+\item
+  Top-down connections from pyramidal neurons in deeper layers back to
+  shallower layers, \verb+synapse_down_pyramidal+, work the same way -- updates of $\tilde{g}$ for
+  presynaptic spikes where $\tilde{g}= \frac{g}{\Delta t}$.
+ \item
+   Connections from interneurons to pyramidal cells,
+   \verb+synapse_inter_to_pyramid+, are plastic. In the continuous
+   runmode, they use the following update equations
+   \begin{align}
+     g(t+\Delta t) &= g(t) + \eta \cdot \delta(t) \cdot \Delta t \\
+     \delta(t+\Delta t) &= \delta(t) - \frac{\Delta t}{\tau} (\delta(t)
+     + V_{\text{post}}^{\text{apical}}(t) \cdot r_{\text{pre}}(t-\Delta
+     t))
+   \end{align}
+   These equations reflect a forward Euler algorithm of the
+   differential equations
+   \begin{align}
+     \dot{g} &= \eta \delta \label{eqn:l1}\\
+     \dot{\delta} &= -\frac{1}{\tau} (\delta + 
+     V_{\text{post}}^{\text{apical}} r_{\text{pre}}) \label{eqn:l2}
+   \end{align}
+   where I assume that the argument $t- \Delta t$ for $r_{\text{pre}}$
+   only stems from trying to match a separate simulation with
+   different update order and can in principle be neglected.
+   
+   If we take the same approach as above of assuming approximately constant
+   $V_{\text{post}}^{\text{apical}}$ and $r_{\text{pre}}$ and solve
+   the equations (\ref{eqn:l1} - \ref{eqn:l2}) for the duration of one
+   inter-spike-interval from spike time $t_k$ to $t_{k+1}$, we get
+   \begin{align}
+     \delta(t) = (e^{-\frac{t-t_k}{\tau}} - 1)
+     V_{\text{post}}^{\text{apical}}r_{\text{pre}} + \delta(t_k) e^{-\frac{t-t_k}{\tau}}.
+   \end{align}
+   If we integrate with respect to $t$, we get
+   \begin{align}
+     g(t)= -\eta \left((\tau e^{-\frac{t-t_k}{\tau}} + t)
+     V_{\text{post}}^{\text{apical}}r_{\text{pre}} + \tau \delta(t_k)
+     e^{-\frac{t-t_k}{\tau}}\right) + C
+   \end{align}
+   and by the boundary condition $g(t)|_{t=t_k} = g(t_k)$, we get
+   \begin{align}
+     C= g(t_k) + \eta \left(
+     (\tau+t_k)V_{\text{post}}^{\text{apical}}r_{\text{pre}} +\tau \delta(t_k)\right)
+   \end{align}
+   and hence
+   \begin{align}
+     g(t) = g(t_k) + \eta \tau \left[\left(\left(1-e^{-\frac{t-t_k}{\tau}}\right)
+     - \frac{t-t_k}{\tau}\right)
+     V_{\text{post}}^{\text{apical}}r_{\text{pre}} + \delta(t_k)
+     \left(1-e^{-\frac{t-t_k}{\tau}}\right)\right]
+   \end{align}
+   which then allows us to calculate $g(t_{k+1})$ and using
+   $r_{\text{pre}} = 1/\left(t_{k+1} - t_k\right)$ we get
+   \begin{align}
+     \delta(t_{k+1}) &= \frac{-\gamma}{t_{k+1}-t_k}
+     V_{\text{post}}^{\text{apical}} + (1-\gamma) \delta(t_k) \\
+    g(t_{k+1}) &= g(t_k) + \eta \tau \left[\left(\frac{\gamma}{t_{k+1}
+         - t_k} - \frac{1}{\tau}\right)V_{\text{post}}^{\text{apical}}
+       +\delta(t_k) \gamma \right] \\
+       \gamma &\equiv 1-e^{-\frac{t_{k+1}-t_k}{\tau}} \label{eqn:g1}
+   \end{align}
+ \item Synapses from pyramidal neurons to interneurons,
+   \verb+synapse_pyramid_to_inter+, are also plastic, where the update
+   in the continuous runmode suggests the differential equations
+   \begin{align}
+     \dot{\delta} &= -\frac{1}{\tau} \left(\delta +
+     (r^{\text{dendrite}}_{\text{post}} -
+     r_{\text{post}})r_{\text{pre}}\right) \\
+     \dot{g} &= \eta \delta
+   \end{align}
+   We follow the same strategy, $r^{\text{dendrite}}_{\text{post}}$,
+   $r_{\text{post}}$ and $r_{\text{pre}}$ approximately constant, then
+   by the same calculation as before
+   \begin{align}
+          \delta(t_{k+1}) &= \frac{-\gamma}{t_{k+1}-t_k}
+     (r^{\text{dendrite}}_{\text{post}} -
+     r_{\text{post}}) + (1-\gamma) \delta(t_k)  \label{eqn:u1} \\
+     g(t_{k+1}) &= g(t_k) + \eta \tau \left[\left(\frac{\gamma}{t_{k+1}
+         - t_k} - \frac{1}{\tau}\right) (r^{\text{dendrite}}_{\text{post}} -
+     r_{\text{post}})
+       +\delta(t_k) \gamma \right] \label{eqn:u2} 
+   \end{align}
+   and $\gamma$ as in (\ref{eqn:g1}).
+   \item Finally, synapse to deeper layers, \verb+synapses_up+, are
+     learning with a similar rule
+     \begin{align}
+        \dot{\delta} &= -\frac{1}{\tau} \left(\delta +
+     (r_{\text{post}} - r^{\text{basal}}_{\text{post}}
+     )r_{\text{pre}}\right) \\
+     \dot{g} &= \eta \delta
+     \end{align}
+     which leads to the same update rules as (\ref{eqn:u1} -
+     \ref{eqn:u2}) except $(r^{\text{dendrite}}_{\text{post}} -
+     r_{\text{post}})$ is replaced with $(r_{\text{post}} - r^{\text{basal}}_{\text{post}})$.
+\end{enumerate}
+For neurons I think the currently implemented strategy of using the
+rate based original equations unchanged and making a threshold
+condition code that emits spikes whenever $t-t_k \geq 1/r_{\text{pre}}$,
+where $t_k$ is the last spike time in the neuron and $r_{\text{pre}}$
+its firing rate as calculated by the internal dynamics, makes sense.
+
+
+\section{Extended steps to spiking equations}
+
+
+\end{document}

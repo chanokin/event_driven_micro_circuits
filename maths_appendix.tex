@@ -1,0 +1,83 @@
+For inter to pyramid synapse.
+\subsection{First for Delta}
+Here $V_{o}$ means voltage in the apical compartment for the post-synaptic neuron and $r_{i}$ the output rate (on the previous time step) for the pre-synaptic neuron.
+\begin{eqnarray}
+  \dot{\delta} = -\frac{1}{\tau}\left(\delta + V_{o} r_{i}\right)\\
+  \dot{\delta} + \frac{1}{\tau}\delta = -\frac{1}{\tau} V_{o} r_{i}
+\end{eqnarray}
+This is a `standard' first-order ordinary differential equation so we use integrating factor $e^{t/\tau}$.
+\begin{eqnarray}
+  \dot{\delta}e^{t/\tau} + \frac{1}{\tau}\delta e^{t/\tau} &=& -\frac{1}{\tau} e^{t/\tau}V_{o} r_{i} \\
+\end{eqnarray}
+To fit into product rule for derivatives $\left[(f\cdot g)' = f\cdot g' + g\cdot f'\right]$
+\begin{eqnarray}
+f = e^{t/\tau} &\text{ and }& \dot{h} = \dot{\delta}\\
+\dot{f} = \frac{1}{\tau} e^{t/\tau}  &\text{ and }& h = \delta
+\end{eqnarray}
+we now get
+\begin{equation}
+\left(\delta e^{t/\tau}\right)' = -\frac{1}{\tau} e^{t/\tau} V_{o} r_{i} 
+\end{equation}
+Integrating both sides
+\begin{eqnarray}
+\delta e^{t/\tau} &=& -V_{o} r_{i} \int_{0}^{t} \frac{1}{\tau} e^{t/\tau} dt \\
+    &=& -V_{o} r_{i} \left[e^{t/\tau}\right]_{0}^{t} + C\\
+    &=& -V_{o} r_{i} \left[e^{t/\tau} - 1\right] + C \\
+\delta &=& \left[-V_{o} r_{i} \left(e^{t/\tau} - 1\right) + C \right] e^{-t/\tau}\\
+\delta &=& -V_{o} r_{i} \left(1 - e^{-t/\tau} \right) + Ce^{-t/\tau}
+\label{delta_at_t_with_C}
+\end{eqnarray}
+To find $C$ and, since we want to integrate between spikes, we'll calculate the constant at $t_k$ (last time at which pre-synaptic spiked). $\delta_k$ is the value of $\delta$ at time $t_k$.
+\begin{eqnarray}
+C &=& \left[\delta_k + V_{o} r_{i} \left(1 - e^{-t_k/\tau} \right)\right] e^{t_k/\tau}
+\label{C_for_delta_at_k}
+\end{eqnarray}
+Substituting \ref{C_for_delta_at_k} in \ref{delta_at_t_with_C}
+
+\begin{eqnarray}
+\delta &=& -V_{o} r_{i} \left(1 - e^{-t/\tau} \right) + \left[\delta_k + V_{o} r_{i} \left(1 - e^{-t_k/\tau} \right)\right] e^{t_k/\tau}e^{-t/\tau}
+\end{eqnarray}
+Let $\Delta t = t - t_k$
+
+\begin{eqnarray}
+\delta &=& -V_{o} r_{i} \left(1 - e^{-t/\tau} \right) + \delta_k e^{-\Delta t/\tau}+ V_{o} r_{i} \left(e^{t_k/\tau} - 1\right)e^{-t/\tau}\\
+\delta &=& -V_{o} r_{i} + \cancel{V_{o} r_{i} e^{-t/\tau}} + \delta_k e^{-\Delta t/\tau}+ V_{o} r_{i} e^{-\Delta t/\tau} - \cancel{V_{o} r_{i} e^{-t/\tau}}
+\end{eqnarray}
+Finally
+\begin{eqnarray}
+\delta &=& -V_{o} r_{i} \left(1 - e^{-\Delta t/\tau}\right)  + \delta_k e^{-\Delta t/\tau}
+\end{eqnarray}
+
+\subsection{Now for efficacy}
+We'll use the same notation as before $V_{o} = V^{apical}_{post}$ and $r_{i} = r_{pre}$.
+\begin{eqnarray}
+	\dot{g} &=& \eta \delta \\
+	\int\dot{g} &=& \eta \int\delta dt\\	
+	g &=& \eta \int \left[ -V_{o} r_{i} \left(1 - e^{-\Delta t/\tau}\right)  + \delta_k e^{-\Delta t/\tau} \right]dt \\
+	g &=& \eta \left[ -V_{o} r_{i} \left(t + \tau e^{-\Delta t/\tau}\right)  - \delta_k \tau e^{-\Delta t/\tau} \right] + C
+	\label{eq:g-at-t}
+\end{eqnarray}
+Obtain the constant at time $t_k$, remember that $\Delta t = t - t_k$
+\begin{eqnarray}
+	C &=& g_{k} + \eta \left[ V_{o} r_{i} \left(t + \tau e^{-\Delta t/\tau}\right) + \delta_k \tau e^{-\Delta t/\tau} \right]\\
+	C &=& g_{k} + \eta \left[ V_{o} r_{i} \left(t_{k} + \tau\right) + \delta_k \tau \right]
+	\label{eq:gk}
+\end{eqnarray}
+Now substituting \ref{eq:gk} in \ref{eq:g-at-t}
+\begin{eqnarray}
+	g &=& \eta \left[ -V_{o} r_{i} \left(t + \tau e^{-\Delta t/\tau}\right)  - \delta_k \tau e^{-\Delta t/\tau} \right] +  \nonumber\\
+	& & g_{k} + \eta \left[ V_{o} r_{i} \left(t_{k} + \tau\right) + \delta_k \tau \right]\\
+	&=& g_{k} -\eta \left[V_{o} r_{i} \left(t_{k} + \tau - t - \tau e^{-\Delta t/\tau}\right)  -  \right. \nonumber\\
+    & & \left. \delta_k \tau e^{-\Delta t/\tau} + \delta_k \tau\right] \\
+	&=& g_{k} -\eta \left[V_{o} r_{i} \left(-\Delta t + \tau\left[1 - e^{-\Delta t/\tau}\right]\right)  +  \right. \nonumber\\
+    & & \left. \delta_k \tau\left(1 - e^{-\Delta t/\tau} \right)\right]
+\end{eqnarray}
+Let $\gamma = 1 - e^{-\Delta t/\tau}$
+\begin{eqnarray}
+	g &=& g_{k} -\eta \left[V_{o} r_{i} \left(-\Delta t + \tau\gamma\right)  + 
+          \delta_k \tau \gamma \right] \\
+g &=& g_{k} -\eta \tau \left[V_{o} r_{i} \left(\gamma -\frac{\Delta t}{\tau} \right)  + 
+\delta_k \gamma \right] 
+\end{eqnarray}
+
+

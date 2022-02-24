@@ -1,0 +1,63 @@
+\subsection{Continuous}
+% if ($(learning_on) > 0) {
+%     scalar ddelta = $(integration_step_size) * (
+%             -$(delta) + 
+%             ( $(rate_post) - $(rate_basal_post) ) * $(rate_last_pre)
+%     );
+%     $(g) += DT * $(eta) * $(delta);
+
+%     $(delta) += ddelta;
+% }
+
+% $(addToInSyn, $(g)*$(rate_pre));
+
+\begin{algorithm}[h!tb]
+\DontPrintSemicolon
+\uIf{$LearningOn$}{
+    $d\delta_{k} \gets AdjustedIntegrationStep * \left(-\delta_{k - 1} + PostComponent_{k - 1} * PreRate_{k - 2}\right)$\\
+    $g_{k} \gets g_{k - 1} + IntegrationStep * \eta * \delta_{k - 1}$\\
+    $\delta_{k} \gets \delta_{k} + d\delta_{k}$\\
+}
+\vspace*{0.5cm}
+\Return $g_{k} * PreRate_{k-1}$
+
+\end{algorithm}
+
+
+
+
+\subsection{Event-driven}
+% if ($(learning_on) > 0) {
+%     scalar dt = $(t) - $(prev_sT_pre);
+%     scalar edt = exp(-dt / $(tau));
+%     scalar post_component = ($(rate_post) - $(rate_basal_post));
+%     scalar _gamma = 1 - edt;
+    
+%     $(g) += $(eta) * $(tau) * ((dt / $(tau) - _gamma) * post_component * $(rate_last_pre) - $(delta) * _gamma)  ;
+    
+%     $(delta) = -_gamma * post_component * $(rate_last_pre) + edt * $(delta);
+% }
+
+% // compute input current after weight update
+% $(addToInSyn, $(g)*$(rate_pre) - $(prev_val));
+% $(prev_val) = $(g)*$(rate_pre);
+
+\begin{algorithm}[h!tb]
+\DontPrintSemicolon
+\uIf{$LearningOn$}{
+    $dt \gets t - PrePreviousSpikeTime$ \\
+    $ExpDt \gets exp^{-dt / \tau}$ \\
+    $\gamma \gets 1 - ExpDt$ \\
+
+    $g_{k} \gets g_{k - 1} + 
+        \eta * \tau * \left[\left(\frac{dt}{\tau} - \gamma\right) * PostComponent_{k - 1} * PreRate_{k - 2} - 
+            \delta_{k - 1} * \gamma\right]$  
+    
+    $\delta_{k} \gets ExpDt * \delta_{k - 1} - \gamma * PostComponent_{k - 1} * PreRate_{k - 2}$
+    
+}
+\vspace*{0.5cm}
+
+$PreviousOutput_{k} \gets  g_{k} * PreRate_{k - 1}$\\
+\Return $g_{k} * PreRate_{k-1} - PreviousOutput_{k - 1}$\\
+\end{algorithm}
